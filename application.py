@@ -12,6 +12,8 @@ KEY_NAME = 'my_test_instance'
 MIN_COUNT = 1
 MAX_COUNT = 1
 
+logged_in_user = None
+
 application = Flask(__name__)
 api = Api(application)
 
@@ -42,6 +44,8 @@ def create():
     output = request.form.to_dict()
     print(output)
     name = output["name"]
+    global logged_in_user
+    logged_in_user = name
 
     return render_template('create.html', name = name)
 
@@ -70,7 +74,6 @@ def instance():
 
 @application.route('/status', methods=['POST', 'GET'])
 def status():
-    existing_instance = None
     user_data = '''
     #!/bin/bash
     echo '
@@ -85,35 +88,34 @@ def status():
     echo 'Hello World!' | sudo tee -a /etc/ssh/my_banner
     echo 'Banner /etc/ssh/my_banner' | sudo tee -a /etc/ssh/sshd_config
     sudo systemctl restart sshd.service
-    echo 'Hello World!' > /tmp/hello.txt
-    '''
+    echo '<html><head></head><body><h1>Hello {}!</h1></body></html>' > /tmp/index.html
+    cd /tmp/
+    sudo python -m SimpleHTTPServer 80
+    '''.format(logged_in_user)
     base64_user_data = base64.b64encode(user_data.encode('ascii'))
 
-    if not existing_instance:
-        ec2 = boto3.resource('ec2')
-        result = ec2.create_instances(
-            ImageId=IMAGE_ID,
-            InstanceType=INSTANCE_TYPE,
-            KeyName=KEY_NAME,
-            MinCount=MIN_COUNT,
-            MaxCount=MAX_COUNT,
-            UserData=base64_user_data,
-            TagSpecifications=[
+    ec2 = boto3.resource('ec2')
+    result = ec2.create_instances(
+        ImageId=IMAGE_ID,
+        InstanceType=INSTANCE_TYPE,
+        KeyName=KEY_NAME,
+        MinCount=MIN_COUNT,
+        MaxCount=MAX_COUNT,
+        UserData=base64_user_data,
+        TagSpecifications=[
+            {
+            'ResourceType': 'instance',
+            'Tags': [
                 {
-                'ResourceType': 'instance',
-                'Tags': [
-                    {
-                        'Key': 'Name',
-                        'Value': 'hello-ec2-{}'.format(time.time())
-                    },
-                ]
-            },
+                    'Key': 'Name',
+                    'Value': 'hello-ec2-{}'.format(time.time())
+                },
             ]
-        )
-        instance_id = result[0]
-        existing_instance = instance_id
-    else:
-        instance_id = existing_instance
+        },
+        ]
+    )
+    instance_id = result[0]
+    # instance_id = 'i-0da6f9f607587c1da'
 
     # client = boto3.client('ec2')
     # response = client.describe_instance_status(
