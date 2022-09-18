@@ -1,6 +1,7 @@
 import base64
 import boto3
 from flask import Flask, render_template, url_for, request
+from flask_restful import Resource, Api
 import time
 
 import pdb
@@ -12,6 +13,24 @@ MIN_COUNT = 1
 MAX_COUNT = 1
 
 application = Flask(__name__)
+api = Api(application)
+
+class ShowInstances(Resource):
+    def get(self):
+        ec2 = boto3.client('ec2')
+        response = ec2.describe_instances()
+        instances = []
+        for resrv in response['Reservations']:
+            for ins in resrv['Instances']:
+                info = {
+                    'instance_id': ins['InstanceId'],
+                    'instance_state': ins['State']['Name'],
+                    'instance_public_dns': ins['PublicDnsName']
+                }
+                instances.append(info)
+        return instances
+
+api.add_resource(ShowInstances, '/api/show_instances')
 
 @application.route('/')
 @application.route('/home')
