@@ -114,14 +114,9 @@ def status():
         },
         ]
     )
-    instance_id = result[0]
+    instance_id = result[0].instance_id
     # instance_id = 'i-0da6f9f607587c1da'
 
-    # client = boto3.client('ec2')
-    # response = client.describe_instance_status(
-    #     InstanceIds=[instance_id]
-    # )
-    # pdb.set_trace()
     return render_template('instance.html', instance_id = instance_id)
     
 if __name__ == "__main__":
